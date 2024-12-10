@@ -1,0 +1,72 @@
+app.py
+python:-
+
+
+from flask import Flask, render_template
+from flask_socketio import SocketIO
+import random
+import time
+from threading import Thread
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'secret!'
+socketio = SocketIO(app)
+
+def generate_data():
+    while True:
+        temperature = random.uniform(20, 30)
+        humidity = random.uniform(30, 60)
+        socketio.emit('sensor_data', {'temperature': temperature, 'humidity': humidity})
+        time.sleep(1)
+
+@app.route('/')
+def index():
+    return render_template('dashboard.html')
+
+if __name__ == '__main__':
+    Thread(target=generate_data).start()
+    socketio.run(app, debug=True)
+
+
+
+
+templates/dashboard.html
+html:-
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-2.24.2.min.js"></script>
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+</head>
+<body>
+<div style="width: 80%; margin: auto; padding: 20px;">
+    <h1>IoT Dashboard</h1>
+    <div id="chart"></div>
+</div>
+
+<script>
+    const socket = io();
+    const chart = document.getElementById('chart');
+    const layout = { title: 'Sensor Data', xaxis: { title: 'Time' }, yaxis: { title: 'Value' } };
+    const data = [
+        { x: [], y: [], mode: 'lines', name: 'Temperature' },
+        { x: [], y: [], mode: 'lines', name: 'Humidity' }
+    ];
+
+    Plotly.newPlot(chart, data, layout);
+
+    socket.on('sensor_data', function(msg) {
+        const time = new Date().toLocaleTimeString();
+        data[0].x.push(time);
+        data[0].y.push(msg.temperature);
+        data[1].x.push(time);
+        data[1].y.push(msg.humidity);
+        Plotly.update(chart, data);
+    });
+</script>
+</body>
+</html>
